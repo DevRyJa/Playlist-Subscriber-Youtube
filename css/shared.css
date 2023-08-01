@@ -1,0 +1,35 @@
+.shortsToggleButton {
+    margin-left: 10px;
+}
+
+ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'] ytd-playlist-header-renderer div.metadata-action-bar > div.metadata-buttons-wrapper
+{
+    margin-right : auto;
+}
+
+#contents.ytd-rich-grid-renderer {
+    padding-top: 2px !important;
+}
+
+#subscription-box {
+    padding-top: 5px;
+}
+
+#subscription-header {
+    width: 100%;
+    margin-left: 4em;
+}
+#subscription-header yt-chip-cloud-chip-renderer {
+    margin-right: 15px ;
+}
+
+#playlist-subscription-box {
+    padding-top: 2em;
+    display:flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+}
+
+.grid-subheader.ytd-shelf-renderer {
+    margin-top: 1em !important;
+}

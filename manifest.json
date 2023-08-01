@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Playlist Subscriber for Youtube™",
+  "description": "Enables you to subscribe to Youtube™ playlists.",
+  "version": "1.0",
+  "permissions": ["storage"],
+  "background": {
+    "service_worker": "./js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["./js/content.js"],
+      "css": ["./css/shared.css"]
+    }
+  ],
+  "icons": {
+    "16": "./icons/YTPlaylistSubscriber16px.png",
+    "32":"./icons/YTPlaylistSubscriber32px.png",
+    "48": "./icons/YTPlaylistSubscriber48px.png",
+    "128": "./icons/YTPlaylistSubscriber128px.png"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmfzxc6kNAf8XJS33TOg6mm8MfBt5IYmNcXdln2uWEV/OHderhtAJgnMijLnLUcWA4zboPuINw/tLwnudCSZ1f664tZ64hG5ZiPb0cv3CO39xjKVk/sLqn1qlKAJrRm5gv5DO/5WEf2flF5LDu9l2+ZGdYn/L2uJCTCg9ZKG95vzvjUgVw/6cEspaY3PqIPGTIPjxOU2ks/Bl2UJ+bExSFjsC+MKAX1EFbvoqdrWFhPbCLnORf9d/soFc5cZnOxie6SSEGX6P7nS8AAcAD2ZiLTuaUUq7QsZUgM5QWAhom5ikG4GrBbC4NtV/1xBf5RkzlXiKeDLIzC4xMHLDLSXHPwIDAQAB"
+}
