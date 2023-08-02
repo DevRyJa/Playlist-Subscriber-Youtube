@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Playlist Subscriber for Youtube™",
+  "name": "Playlist Subscriber for Youtube",
   "description": "Enables you to subscribe to Youtube playlists.",
   "version": "1.0",
   "permissions": ["storage"],
