@@ -1,5 +1,4 @@
 let lastUrl = "";
-let playlistButtonId = "";
 let lastRunTime = null;
 initializData();
 
@@ -10,49 +9,33 @@ async function mutationHandler() {
   if (url !== lastUrl) {
     lastUrl = url;
     // run if on target url
-    await urlHandler(url,await getUserHandle(),await getProfileData());
+    await urlHandler(url,await getUserHandle());
   }
 }
 const urlCheck = new MutationObserver(mutationHandler);
 urlCheck.observe(document, { subtree: true, childList: true });
 
-async function urlHandler(url, userHandle, profile) {
+async function urlHandler(url, userHandle) {
 
   // on youtube subscriptions page
   if (url.startsWith("https://www.youtube.com/feed/subscriptions")) {
     console.log("on subscription feed");
-    // append subscription box header
-    elementExists(document.querySelector('#subscription-header'),createSubHeader());
-    // append shorts toggle
-    await shortsToggle();
     // verify user
-    await verifyUser(userHandle, profile);
-    // retrieve and append video data from subscribed playlists
-    let videos = await profile[userHandle].videoData;
-    // sort videos from newest to oldest
-    console.log(videos);
-    try {
-      for (let video of videos) {
-        await createVideoElement(video);
-      }
-    } catch (error) {
-      console.error("something went wrong");
+    await verifyUser(userHandle);
+    // append subscription box header
+    if(!document.querySelector('div#subscription-header')){
+      createSubHeader(userHandle);
     }
-    // fetch updated video data
-    updateVideoData(profile, userHandle);
   }
   // on youtube playlist page
   else if (url.startsWith("https://www.youtube.com/playlist?list=")) {
     console.log("on playlist page");
     // verify user
-    await verifyUser(userHandle, profile);
-    // create playlist data if it does not exist
-    await initPlaylistData(userHandle, profile, playlistId(url));
-    // create and append playlist subscribe button
-    let subBtn = await createPlaylistButton(profile, userHandle, url);
-    if (await insertElement(subBtn,await elementReady(selectors.subContainer),selectors.subBtnClass)) {
-      await subscribeBtnText(profile, userHandle, playlistId(url), subBtn);
-    }
+    await verifyUser(userHandle);
+    // create playlist data
+    await initPlaylistData(userHandle, await getProfileData(), getPlaylistID(url));
+    //append playlist subscribe button
+    await appendSubcribeButton(userHandle,getPlaylistID(url));
   }
   // on any youtube page
   else if (url.includes("youtube.com")) {
@@ -65,7 +48,7 @@ async function urlHandler(url, userHandle, profile) {
     console.log("its time");
     // update subscription video data
     try {
-      await updateVideoData(profile, userHandle);
+      await updateVideoData(userHandle);
     } catch (error) {
       console.error("Something went wrong!");
     }
@@ -78,18 +61,16 @@ async function urlHandler(url, userHandle, profile) {
 
 // initialize data on start up
 async function initializData (){
-  // await chrome.storage.local.clear();
+  // await clearLocalStorage();
   await initLocalStorage();
   await verifyUser(await getUserHandle(),await getProfileData());
-  console.log(await chrome.storage.local.get(null));
   }
 // initialize local storage
 async function initLocalStorage() {
   let result = await chrome.storage.local.get(null);
   if (Object.keys(result).length === 0) {
     let defaultData = {
-      profile: {},
-      settings: {}
+      profile: {}
     };
     await chrome.storage.local.set(defaultData);
     console.log("local storage initialized");
@@ -109,27 +90,28 @@ async function getProfileData(){
   return result.profile;
 }
 // verify user data
-async function verifyUser(userHandle,profile){
+async function verifyUser(userHandle){
+  let profile = await getProfileData();
   try {
     let channelID = await getChannelID(userHandle);
-      //go through users in profile data
-      for(let user in profile){
-        //check if the current channel ID belongs to any user
-        if(profile[user].channelID == channelID){
-          //if channel id matches, check if handle needs to be updated
-          if(user==userHandle){
-            console.log("Logged in as: ",userHandle);
-            return;
-          }else{
-            //update handle
-            await updateUser(profile,user,userHandle)
-            return;
-          }
+    //go through users in profile data
+    for(let user in profile){
+      //check if the current channel ID belongs to any user
+      if(profile[user].channelID == channelID){
+        //if channel id matches, check if handle needs to be updated
+        if(user==userHandle){
+          console.log("Logged in as: ",userHandle);
+          return;
+        }else{
+          //update handle
+          await updateUser(profile,user,userHandle)
+          return;
         }
       }
-      console.log("no matching users");
-      await createUser(profile,userHandle,channelID)
-      return;
+    }
+    console.log("no matching users");
+    await createUser(profile,userHandle,channelID)
+    return;
   } catch (error) {
     console.error("Could not verify user");
   }
@@ -139,6 +121,7 @@ async function createUser(profile,userHandle,channelID){
   profile[userHandle] = {
     channelID: channelID,
     playlistData: {},
+    videoData: []
   };
   await chrome.storage.local.set({profile});
   console.log("user storage created");
@@ -146,7 +129,7 @@ async function createUser(profile,userHandle,channelID){
 // update userHandle data
 async function updateUser(profile,oldUserHandle,newUserHandle){
   profile[newUserHandle] = profile[oldUserHandle];
-  delete profile[user];
+  delete profile[oldUserHandle];
   await chrome.storage.local.set({profile});
   console.log("Updated user handle in profile data.");
 }
@@ -182,13 +165,11 @@ async function getChannelID(userHandle) {
   const channelUrl = html.match(regex);
   //extract channel id
   const channelID = channelUrl[1];
-
- return channelID;
-
+  return channelID;
 }
 // initialize user's playlist data
 async function initPlaylistData (userHandle,profile,playlistID){
-  let playlistData = await getUserPlaylistData(userHandle,profile);
+  let playlistData = profile[userHandle].playlistData;
   if(!playlistData[playlistID]){
     profile[userHandle].playlistData[playlistID] = {
       isSubscribed: false
@@ -199,92 +180,105 @@ async function initPlaylistData (userHandle,profile,playlistID){
     console.log("Playlist data already exists.")
   }
 }
-// get user's playlist data
-async function getUserPlaylistData (userHandle,profile){
-  return profile[userHandle].playlistData
-}
 // grab playlist ID from url
-function playlistId(url) {
+function getPlaylistID(url) {
   return url.split("list=")[1];
 }
 // update user video data
-async function updateVideoData(profile,userHandle){
-  await verifyUser(userHandle,profile);
-  console.log("im inside");
-  chrome.runtime.sendMessage({request: 'user_video_data',profile: profile, user: userHandle});
+async function updateVideoData(userHandle){
+  await verifyUser(userHandle);
+  let profile = await getProfileData();
+  await chrome.runtime.sendMessage({request: 'user_video_data',profile: profile, user: userHandle});
+  console.log("videos updated");
 }
 
 //---------- PLAYLIST SUBSCRIBE BUTTON ----------//
 
 // create subscribe button
-async function createPlaylistButton(profile,userHandle,url) {
-  let subscribeButton = createSubscribeButtonElement();
-  // playlistButtonId = subscribeButton.id = playlistId(url);
-  await subscribeBtnText(profile,userHandle,playlistId(url),subscribeButton);
+async function createPlaylistButton(userHandle,playlistID) {
+  let subscribeButton = await createSubscribeButtonElement(userHandle,playlistID);
   subscribeButton.addEventListener('click', e =>{
-    subscribeEvent(e,playlistId(url),profile,userHandle);
+    subscribeEvent(e,playlistID,userHandle);
   });
   return subscribeButton;
 }
+// append subscribe button
+async function appendSubcribeButton(userHandle,playlistID){
+  console.log(userHandle);
+  removeElement(document.querySelector(".playlistSubBtn"));
+  let subBtn = await createPlaylistButton(userHandle, playlistID);
+  insertElement(subBtn,await elementReady(selectors.subContainer),".playlistSubBtn");
+}
 // create subscribe button element
-function createSubscribeButtonElement() {
-let buttonEl = document.createElement("button");
-buttonEl.classList.add("playlistSubBtn");
-buttonEl.classList.add("yt-spec-button-shape-next", "yt-spec-button-shape-next--tonal", "yt-spec-button-shape-next--mono", "yt-spec-button-shape-next--size-m");
-buttonEl.setAttribute("aria-label", "Subscribe Button");
+async function createSubscribeButtonElement(userHandle,playlistID) {
+  let buttonEl = document.createElement("button");
+  buttonEl.classList.add("playlistSubBtn");
+  buttonEl.classList.add("yt-spec-button-shape-next", "yt-spec-button-shape-next--tonal", "yt-spec-button-shape-next--mono", "yt-spec-button-shape-next--size-m");
+  buttonEl.setAttribute("aria-label", "Subscribe Button");
 
-let divEl = document.createElement("div");
-divEl.classList.add("cbox", "yt-spec-button-shape-next__button-text-content");
+  let divEl = document.createElement("div");
+  divEl.classList.add("cbox", "yt-spec-button-shape-next__button-text-content");
 
-let spanEl = document.createElement("span");
-spanEl.classList.add("yt-core-attributed-string", "yt-core-attributed-string--white-space-no-wrap");
-spanEl.setAttribute("role", "text");
-spanEl.textContent = "";
+  let spanEl = document.createElement("span");
+  spanEl.classList.add("yt-core-attributed-string", "yt-core-attributed-string--white-space-no-wrap");
+  spanEl.setAttribute("role", "text");
+  spanEl.textContent =  await subscribeBtnText(userHandle,playlistID);
 
-divEl.appendChild(spanEl);
-buttonEl.appendChild(divEl);
+  divEl.appendChild(spanEl);
+  buttonEl.appendChild(divEl);
 
-let touchFeedbackShapeEl = document.createElement("yt-touch-feedback-shape");
-touchFeedbackShapeEl.style.borderRadius = "inherit";
+  let touchFeedbackShapeEl = document.createElement("yt-touch-feedback-shape");
+  touchFeedbackShapeEl.style.borderRadius = "inherit";
 
-let innerDivEl1 = document.createElement("div");
-innerDivEl1.classList.add("yt-spec-touch-feedback-shape", "yt-spec-touch-feedback-shape--touch-response");
-innerDivEl1.setAttribute("aria-hidden", "true");
+  let innerDivEl1 = document.createElement("div");
+  innerDivEl1.classList.add("yt-spec-touch-feedback-shape", "yt-spec-touch-feedback-shape--touch-response");
+  innerDivEl1.setAttribute("aria-hidden", "true");
 
-let innerDivEl2 = document.createElement("div");
-innerDivEl2.classList.add("yt-spec-touch-feedback-shape__stroke");
+  let innerDivEl2 = document.createElement("div");
+  innerDivEl2.classList.add("yt-spec-touch-feedback-shape__stroke");
 
-let innerDivEl3 = document.createElement("div");
-innerDivEl3.classList.add("yt-spec-touch-feedback-shape__fill");
+  let innerDivEl3 = document.createElement("div");
+  innerDivEl3.classList.add("yt-spec-touch-feedback-shape__fill");
 
-innerDivEl1.appendChild(innerDivEl2);
-innerDivEl1.appendChild(innerDivEl3);
-touchFeedbackShapeEl.appendChild(innerDivEl1);
-buttonEl.appendChild(touchFeedbackShapeEl);
-return buttonEl;
-}
-// subscribe button event handler
-async function subscribeEvent (button,playlistID,profile,userHandle){
-const btn = button.currentTarget;
-  if(await getSubscribeState(profile,userHandle,playlistID) === false){
-     await subscribe(playlistID,profile,userHandle);
-     await subscribeBtnText(profile,userHandle, playlistID,btn);
-   }else{
-     await unsubscribe(playlistID,profile,userHandle);
-     await subscribeBtnText(profile,userHandle, playlistID,btn);
-   }
-}
-// get user's playlist subscribed state
-async function getSubscribeState (profile,userHandle,playlistID){
-  return profile[userHandle].playlistData[playlistID].isSubscribed;
+  innerDivEl1.appendChild(innerDivEl2);
+  innerDivEl1.appendChild(innerDivEl3);
+  touchFeedbackShapeEl.appendChild(innerDivEl1);
+  buttonEl.appendChild(touchFeedbackShapeEl);
+  return buttonEl;
 }
 // set button text
-async function subscribeBtnText (profile,userHandle, playlistID,button){
-  let subscribeState = await getSubscribeState(profile,userHandle,playlistID);
-  button.querySelector("div.cbox span").textContent = subscribeState ? "Subscribed" : "Subscribe";
+async function subscribeBtnText (userHandle, playlistID){
+  let profile = await getProfileData();
+  console.log(userHandle);
+  console.log(playlistID);
+  console.log(profile[userHandle].playlistData[playlistID]);
+  let subscribeState = profile[userHandle].playlistData[playlistID].isSubscribed;
+  console.log(subscribeState);
+  return subscribeState ? "Subscribed" : "Subscribe";
 }
+// subscribe button event handler
+async function subscribeEvent (e,playlistID,userHandle){
+const btn = e.currentTarget;
+let profile = await getProfileData();
+  if(profile[userHandle].playlistData[playlistID].isSubscribed === false){
+    // update playlist data
+    await subscribe(playlistID,userHandle);
+    // update button text
+    btn.querySelector("span").textContent = await subscribeBtnText(userHandle, playlistID);
+    await updateVideoData(userHandle);
+    }else{
+    // update playlsit data
+    await unsubscribe(playlistID,userHandle);
+    // update button text
+    btn.querySelector("span").textContent = await subscribeBtnText(userHandle, playlistID);
+    await updateVideoData(userHandle);
+    }
+}
+
 // subscribe to playlist
-async function subscribe (playlistID,profile,userHandle){
+async function subscribe (playlistID,userHandle){
+  // get profile data
+  let profile = await getProfileData();
   //change subscribe state to true
   profile[userHandle].playlistData[playlistID].isSubscribed = true;
   //update date unsubscribed
@@ -292,18 +286,26 @@ async function subscribe (playlistID,profile,userHandle){
   //save data
   await chrome.storage.local.set({ profile });
   console.log(playlistID, ' subscribed state changed to ', profile[userHandle].playlistData[playlistID].isSubscribed);
-  return profile[userHandle].playlistData;
 }
 // unsubscribe to playlist
-async function unsubscribe (playlistID,profile,userHandle){
+async function unsubscribe (playlistID,userHandle){
+  // get profile data
+  let profile = await getProfileData();
   //change subscribe state to false
   profile[userHandle].playlistData[playlistID].isSubscribed = false;
   //update date unsubscribed
   profile[userHandle].playlistData[playlistID].dateUnsubscribed = new Date().toISOString();
+  //remove video count
+  delete profile[userHandle].playlistData[playlistID].videoCount;
+  console.log(profile[userHandle].videoData);
+  //remove videos from unsubscribed playlist
+  profile[userHandle].videoData = profile[userHandle].videoData.filter(video => {
+    return video.playlistId !== playlistID; 
+  });
+  console.log(profile[userHandle].videoData);
   //save data
   await chrome.storage.local.set({ profile });
   console.log(playlistID, ' subscribed state changed to ', profile[userHandle].playlistData[playlistID].isSubscribed);
-  return profile[userHandle].playlistData;
 }
 
 //----------- YOUTUBE API UTILS ----------//
@@ -320,7 +322,7 @@ async function apiVideoData(videoID){
 //----------- SUBSCRIPTION BOX ----------//
 
 // create subscription box header
-async function createSubHeader (){
+async function createSubHeader (userHandle){
   // append header
   let header = document.createElement("div");
   header.id = "subscription-header";
@@ -328,8 +330,8 @@ async function createSubHeader (){
   const firstChild = document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").firstChild;
   document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").insertBefore(header,firstChild);
   // append header buttons
-  createHeaderButton("All",header,"div#subscription-box ytd-rich-grid-renderer",true);
-  createHeaderButton("Playlists",header,"#playlist-subscription-box");
+  createAllHeaderButton(header,"div#subscription-box ytd-rich-grid-renderer");
+  createPlaylistHeaderButton(header,"#playlist-subscription-box",userHandle);
   // append sub box container
   let subBox = document.createElement("div");
   subBox.id = "subscription-box";
@@ -339,8 +341,24 @@ async function createSubHeader (){
   // append playlist contents
   subBox.appendChild(createPlaylistSubBox());
 }
+
+//append playlist videos
+async function appendPlaylistVideos(userHandle){
+  let profile  = await getProfileData();
+  console.log(profile[userHandle].playlistData);
+  // retrieve and append video data from subscribed playlists
+  let videos = profile[userHandle].videoData;
+  // sort videos from newest to oldest
+  
+  for (let video of videos) {
+    createVideoElement(video);
+  }
+  
+  // fetch updated video data
+  await updateVideoData(userHandle);
+}
 // create and append subscription header button
-function createHeaderButton (text,container,contents,state=false){
+function createAllHeaderButton (container,contents){
   // create youtube chip button element
   let headerButton = document.createElement("yt-chip-cloud-chip-renderer");
   // append to page
@@ -348,13 +366,12 @@ function createHeaderButton (text,container,contents,state=false){
   // implement correct button styling
   headerButton.setAttribute("chip-style","STYLE_HOME_FILTER");
   headerButton.querySelector("yt-formatted-string").removeAttribute("is-empty");
-  headerButton.querySelector("yt-formatted-string").textContent = text;
-  headerButton.id = text.toLowerCase()+"-header-btn";
+  headerButton.querySelector("yt-formatted-string").textContent = "All";
+  headerButton.id = "all-header-btn";
   // set state of default button
-  if(state){
-    headerButton.setAttribute("selected","");
-    headerButton.setAttribute("aria-selected","true");
-  }
+  headerButton.setAttribute("selected","");
+  headerButton.setAttribute("aria-selected","true");
+
   // add tab-like click event
   headerButton.addEventListener('click', function(event) {
     if(event.currentTarget.getAttribute('aria-selected') == "false"){
@@ -375,6 +392,40 @@ function createHeaderButton (text,container,contents,state=false){
   });
   return headerButton;
 }
+// create and append subscription header button
+function createPlaylistHeaderButton (container,contents,userHandle){
+  // create youtube chip button element
+  let headerButton = document.createElement("yt-chip-cloud-chip-renderer");
+  // append to page
+  container.appendChild(headerButton);
+  // implement correct button styling
+  headerButton.setAttribute("chip-style","STYLE_HOME_FILTER");
+  headerButton.querySelector("yt-formatted-string").removeAttribute("is-empty");
+  headerButton.querySelector("yt-formatted-string").textContent = "Playlists";
+  headerButton.id = "playlist-header-btn";
+
+  // add tab-like click event
+  headerButton.addEventListener('click', async function(event) {
+    if(event.currentTarget.getAttribute('aria-selected') == "false"){
+      // reset all header buttons to neutral state
+      document.querySelectorAll("#subscription-header yt-chip-cloud-chip-renderer").forEach(button => {
+        button.removeAttribute("selected");
+      })
+      // change clicked button to selected state
+      event.currentTarget.setAttribute("aria-selected","true");
+      event.currentTarget.setAttribute("selected","");
+      // hide all video containers
+      const container = document.querySelector('#subscription-box');
+      const boxes = Array.from(container.children);
+      boxes.forEach(box=>{box.hidden = true})
+      //append videos
+      appendPlaylistVideos(userHandle);
+      // unhide selected video container
+      document.querySelector(contents).hidden = false;
+    }
+  });
+  return headerButton;
+}
 // create playlist subscription box
 function createPlaylistSubBox(){
   let playlistSubBox = document.createElement("div");
@@ -383,7 +434,7 @@ function createPlaylistSubBox(){
   return playlistSubBox;
 }
 // create and append video element
-async function createVideoElement(videoData) {
+function createVideoElement(videoData) {
   // check if video element already exists
   if(document.querySelector(`#playlist-subscription-box a[href = "/watch?v=${videoData.videoId}"]`)){
     console.log("video element exists");
@@ -440,36 +491,13 @@ async function createVideoElement(videoData) {
   }
 }
 
-//----------- SHORTS TOGGLE ----------//
-
-// create shorts toggle
-async function shortsToggle(){
-  await insertElement(await createToggleElement(), await elementReady(selectors.shortsToggleContainer),selectors.shortsToggleClass);
-  document.querySelector(selectors.shortsToggleClass).addEventListener('click', function(event) {
-
-  if(event.currentTarget.getAttribute('aria-pressed') == "true"){
-    document.querySelector(selectors.shortsContentContainer).hidden = true;
-  }else{
-    document.querySelector(selectors.shortsContentContainer).hidden = false;
-  }
-  });
-}
-// create toggle element
-async function createToggleElement(){
-  const button = document.createElement('tp-yt-paper-toggle-button');
-  button.classList.add("shortsToggleButton");
-  return button;
-}
-
 //------------ OTHER UTILS -----------//
 
 // selectors
 const selectors = {
   subContainer : "ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'] ytd-playlist-header-renderer div.metadata-action-bar > div.metadata-buttons-wrapper",
   subBtnClass : ".playlistSubBtn",
-  shortsToggleContainer : 'ytd-browse[page-subtype="subscriptions"] #rich-shelf-header > h2',
-  shortsContentContainer : 'ytd-browse[page-subtype="subscriptions"] ytd-rich-shelf-renderer[is-shorts=""] #contents',
-  shortsToggleClass : '.shortsToggleButton'
+
 }
 // check if target element exists
 function elementReady(selector) {
@@ -477,7 +505,6 @@ function elementReady(selector) {
     //intially check for element
     let el = document.querySelector(selector);
     if (el) {resolve(el);}
-
     //reject if element not found
     let timeout = setTimeout(() => {
       reject('Element not found');
@@ -496,14 +523,12 @@ function elementReady(selector) {
   });
 }
 // insert element
-async function insertElement(element, parentEl, uniqueSelector) {
+function insertElement(element, parentEl, uniqueSelector) {
   if (document.querySelector(uniqueSelector)) {
     console.log("element exists");
-    return true;
   } else {
     parentEl.appendChild(element);
     console.log("Element appended.");
-    return false;
   }
 }
 // remove element
@@ -516,22 +541,12 @@ function removeElement(element) {
 function secondsToHMS(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
-
   if (minutes >= 60) {
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     return `${hours}:${String(remainingMinutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   }
-
   return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
-}
-// if element exists
-function elementExists(element,fn){
-  if(element){
-    return true;
-  }else{
-    fn;
-  }
 }
 // convert published text to timestamp
 function textToTimestamp(text) {
