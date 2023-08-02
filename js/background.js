@@ -41,7 +41,6 @@ async function getVideoData(video) {
 }
 // retrieve and update user video data
 async function getRecentVideos(playlists, userHandle, profile) {
-
   // fetch all playlist api data
   const playlistsPromises = playlists.map((playlist) => {
     return getPlaylistData(playlist);
@@ -70,13 +69,13 @@ async function getRecentVideos(playlists, userHandle, profile) {
     for (let video of videos) {
       if (isWithinLast7Days(textToTimestamp(video.value.publishedText)) && !profile[userHandle].videoData[video.value]) {
         video.value.playlistId = playlist.playlistId;
+        video.value.playlistTitle = playlist.title;
         profile[userHandle].videoData.push(video.value);
       } else {
         break;
       }
     }
   }
-
   const updateVideos = profile[userHandle].videoData
     .sort((a, b) => textToTimestamp(b.publishedText) - textToTimestamp(a.publishedText))
     .filter((video)=>isWithinLast7Days(textToTimestamp(video.publishedText)))

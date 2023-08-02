@@ -348,12 +348,9 @@ async function appendPlaylistVideos(userHandle){
   console.log(profile[userHandle].playlistData);
   // retrieve and append video data from subscribed playlists
   let videos = profile[userHandle].videoData;
-  // sort videos from newest to oldest
-  
   for (let video of videos) {
     createVideoElement(video);
   }
-  
   // fetch updated video data
   await updateVideoData(userHandle);
 }
@@ -479,7 +476,7 @@ function createVideoElement(videoData) {
   video.querySelector("div#details div#meta h3 a#video-title-link").href = `/watch?v=${videoData.videoId}`
   video.querySelector("div#details div#meta h3 a#video-title-link #video-title").textContent = videoData.title;
   video.querySelector("div#details div#meta #metadata #byline-container").hidden = false;
-  video.querySelector("div#details div#meta #metadata #text-container #text ").innerHTML = `<a class="yt-simple-endpoint style-scope yt-formatted-string" spellcheck="false" href="/channel/${videoData.authorId}" dir="auto">${videoData.author}</a>`
+  video.querySelector("div#details div#meta #metadata #text-container #text ").innerHTML = `<a class="yt-simple-endpoint style-scope yt-formatted-string" spellcheck="false" href="/playlist?list=${videoData.playlistId}" dir="auto">${videoData.playlistTitle}</a>`
   video.querySelector("div#details div#meta #metadata #metadata-line").innerHTML = 
   `     <div id="separator" class="style-scope ytd-video-meta-block" hidden="">•</div>
         <span class="inline-metadata-item style-scope ytd-video-meta-block">${videoData.subCountText} views</span>
