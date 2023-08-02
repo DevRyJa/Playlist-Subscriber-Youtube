@@ -4,6 +4,7 @@
   "description": "Enables you to subscribe to Youtube™ playlists.",
   "version": "1.0",
   "permissions": ["storage"],
+  "host_permissions":["https://vid.puffyan.us/*","https://inv.tux.pizza/*"],
   "background": {
     "service_worker": "./js/background.js"
   },
