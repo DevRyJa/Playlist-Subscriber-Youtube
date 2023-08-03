@@ -1,6 +1,8 @@
 let lastUrl = "";
 let lastRunTime = null;
-initializData();
+
+(async ()=>{await initializData();
+})()
 
 async function mutationHandler() {
   // save current url
@@ -93,7 +95,7 @@ async function getProfileData(){
 async function verifyUser(userHandle){
   let profile = await getProfileData();
   try {
-    let channelID = await getChannelID(userHandle);
+    let channelID = await apiChannelId(userHandle);
     //go through users in profile data
     for(let user in profile){
       //check if the current channel ID belongs to any user
@@ -139,33 +141,23 @@ async function updateUser(profile,oldUserHandle,newUserHandle){
 // get user handle
 async function getUserHandle(){
   try {
-    let bodyElement = document.body;
-    let avatarBtn = await elementReady("ytd-masthead#masthead #avatar-btn");
-    avatarBtn.click();
-    let dropdown = await elementReady("ytd-popup-container");
-    dropdown.hidden = true;
-    let channelHandleContainer = await elementReady("ytd-popup-container > tp-yt-iron-dropdown #channel-handle");
-    let userHandle = channelHandleContainer.textContent;
-    setTimeout(() => {
-      dropdown.hidden = false;
-      bodyElement.click();
-    }, 500);
-    return userHandle;
+    if(document.querySelector("#channel-container #channel-handle")){
+      let userHandle = document.querySelector("ytd-active-account-header-renderer #channel-container #channel-handle").textContent;
+      return userHandle;
+    }else{
+      let avatarBtn = await elementReady("button#avatar-btn");
+      avatarBtn.click();
+      document.querySelector("ytd-popup-container > tp-yt-iron-dropdown").classList.add("hidden");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      let channelHandleContainer = await elementReady("#channel-container #channel-handle");
+      let userHandle = channelHandleContainer.textContent;
+      document.body.click();
+      document.querySelector("ytd-popup-container > tp-yt-iron-dropdown").classList.remove("hidden");
+      return userHandle;
+    }
   } catch (error) {
     console.error("User not logged in.");
   }
-}
-// get channel id
-async function getChannelID(userHandle) {
-  //get html from channel page
-  let response = await fetch(`https://www.youtube.com/${userHandle}`);
-  let html = await response.text();
-  const regex = /"https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=([\w-]+)"/;
-  //get url with channel id
-  const channelUrl = html.match(regex);
-  //extract channel id
-  const channelID = channelUrl[1];
-  return channelID;
 }
 // initialize user's playlist data
 async function initPlaylistData (userHandle,profile,playlistID){
@@ -312,11 +304,15 @@ async function unsubscribe (playlistID,userHandle){
 
 // get playlist data
 async function apiPlaylistData(playlistID){
-  return  await chrome.runtime.sendMessage({request: 'playlist_data',id: playlistID});
+  return await chrome.runtime.sendMessage({request: 'playlist_data',id: playlistID});
 }
 // get video data
 async function apiVideoData(videoID){
-  return  await chrome.runtime.sendMessage({request: 'video_data',id: videoID});
+  return await chrome.runtime.sendMessage({request: 'video_data',id: videoID});
+}
+// get channel id
+async function apiChannelId(userHandle){
+  return await chrome.runtime.sendMessage({request: 'channel_id',user: userHandle});
 }
 
 //----------- SUBSCRIPTION BOX ----------//
@@ -348,6 +344,7 @@ async function appendPlaylistVideos(userHandle){
   console.log(profile[userHandle].playlistData);
   // retrieve and append video data from subscribed playlists
   let videos = profile[userHandle].videoData;
+  document.querySelector("#playlist-subscription-box").replaceChildren();
   for (let video of videos) {
     createVideoElement(video);
   }
@@ -433,9 +430,11 @@ function createPlaylistSubBox(){
 // create and append video element
 function createVideoElement(videoData) {
   // check if video element already exists
-  if(document.querySelector(`#playlist-subscription-box a[href = "/watch?v=${videoData.videoId}"]`)){
-    console.log("video element exists");
-  }else{
+  // if(document.querySelector(`#playlist-subscription-box a[href = "/watch?v=${videoData.videoId}"]`)){
+  //   console.log("video element exists");
+  // }else{
+
+
   // create video item renderer element
   const video = document.createElement("ytd-rich-item-renderer");
   video.className = "style-scope ytd-rich-grid-row";
@@ -486,7 +485,7 @@ function createVideoElement(videoData) {
 
   return video;
   }
-}
+// }
 
 //------------ OTHER UTILS -----------//
 
@@ -505,7 +504,7 @@ function elementReady(selector) {
     //reject if element not found
     let timeout = setTimeout(() => {
       reject('Element not found');
-    }, 3000);
+    }, 5000);
 
     new MutationObserver((mutationRecords, observer) => {
       const element = document.querySelector(selector);

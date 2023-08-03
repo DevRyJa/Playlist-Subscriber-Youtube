@@ -16,7 +16,7 @@ ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'
 }
 
 #subscription-header {
-    width: 100%;
+    /* width: 100%; */
     margin-left: 4em;
 }
 #subscription-header yt-chip-cloud-chip-renderer {
@@ -33,3 +33,10 @@ ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'
 .grid-subheader.ytd-shelf-renderer {
     margin-top: 1em !important;
 }
+
+.hidden {
+    visibility: hidden; 
+    /* display:none; */
+    /* position: absolute; 
+    left: -9999px; */
+  }

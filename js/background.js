@@ -11,6 +11,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ data });
     })();
     return true;
+  } else if (message.request === "channel_id") {
+    (async () => {
+      const data = await getChannelID(message.user);
+      sendResponse( data );
+    })();
+    return true;
   } else if (message.request == "user_video_data") {
     (async () => {
       let profile = message.profile;
@@ -38,6 +44,18 @@ async function getVideoData(video) {
   );
   const data = await result.json();
   return data;
+}
+// fetch channel ID
+async function getChannelID(userHandle) {
+  //get html from channel page
+  let response = await fetch(`https://www.youtube.com/${userHandle}`);
+  let html = await response.text();
+  const regex = /"https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=([\w-]+)"/;
+  //get url with channel id
+  const channelUrl = html.match(regex);
+  //extract channel id
+  const channelID = channelUrl[1];
+  return channelID;
 }
 // retrieve and update user video data
 async function getRecentVideos(playlists, userHandle, profile) {
@@ -101,7 +119,6 @@ function getSubscribedPlaylists (userHandle,profile){
   }
   return subscribedPlaylists;
 }
-
 // convert published text to timestamp
 function textToTimestamp(text) {
   if(text==undefined){
@@ -145,3 +162,4 @@ function textToTimestamp(text) {
   return 0; // Default if no match
 
 }
+
