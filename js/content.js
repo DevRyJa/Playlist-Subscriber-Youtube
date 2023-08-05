@@ -141,7 +141,7 @@ async function updateUser(profile,oldUserHandle,newUserHandle){
 // get user handle
 async function getUserHandle(){
   try {
-    if(document.querySelector("#channel-container #channel-handle")){
+    if(document.querySelector("ytd-active-account-header-renderer #channel-container #channel-handle")){
       let userHandle = document.querySelector("ytd-active-account-header-renderer #channel-container #channel-handle").textContent;
       return userHandle;
     }else{
@@ -149,7 +149,7 @@ async function getUserHandle(){
       avatarBtn.click();
       document.querySelector("ytd-popup-container > tp-yt-iron-dropdown").classList.add("hidden");
       await new Promise(resolve => setTimeout(resolve, 1000));
-      let channelHandleContainer = await elementReady("#channel-container #channel-handle");
+      let channelHandleContainer = await elementReady("ytd-active-account-header-renderer #channel-container #channel-handle");
       let userHandle = channelHandleContainer.textContent;
       document.body.click();
       document.querySelector("ytd-popup-container > tp-yt-iron-dropdown").classList.remove("hidden");
@@ -180,6 +180,7 @@ function getPlaylistID(url) {
 async function updateVideoData(userHandle){
   await verifyUser(userHandle);
   let profile = await getProfileData();
+  console.log(profile);
   await chrome.runtime.sendMessage({request: 'user_video_data',profile: profile, user: userHandle});
   console.log("videos updated");
 }
@@ -241,11 +242,7 @@ async function createSubscribeButtonElement(userHandle,playlistID) {
 // set button text
 async function subscribeBtnText (userHandle, playlistID){
   let profile = await getProfileData();
-  console.log(userHandle);
-  console.log(playlistID);
-  console.log(profile[userHandle].playlistData[playlistID]);
   let subscribeState = profile[userHandle].playlistData[playlistID].isSubscribed;
-  console.log(subscribeState);
   return subscribeState ? "Subscribed" : "Subscribe";
 }
 // subscribe button event handler
@@ -257,14 +254,14 @@ let profile = await getProfileData();
     await subscribe(playlistID,userHandle);
     // update button text
     btn.querySelector("span").textContent = await subscribeBtnText(userHandle, playlistID);
-    await updateVideoData(userHandle);
     }else{
     // update playlsit data
     await unsubscribe(playlistID,userHandle);
     // update button text
     btn.querySelector("span").textContent = await subscribeBtnText(userHandle, playlistID);
-    await updateVideoData(userHandle);
     }
+console.log("updating videos...");
+await updateVideoData(userHandle);
 }
 
 // subscribe to playlist
@@ -275,6 +272,7 @@ async function subscribe (playlistID,userHandle){
   profile[userHandle].playlistData[playlistID].isSubscribed = true;
   //update date unsubscribed
   profile[userHandle].playlistData[playlistID].dateSubscribed = new Date().toISOString();
+  console.log("before save");
   //save data
   await chrome.storage.local.set({ profile });
   console.log(playlistID, ' subscribed state changed to ', profile[userHandle].playlistData[playlistID].isSubscribed);
@@ -344,8 +342,10 @@ async function appendPlaylistVideos(userHandle){
   console.log(profile[userHandle].playlistData);
   // retrieve and append video data from subscribed playlists
   let videos = profile[userHandle].videoData;
+
   document.querySelector("#playlist-subscription-box").replaceChildren();
   for (let video of videos) {
+    if(video.href="ga")
     createVideoElement(video);
   }
   // fetch updated video data
@@ -429,11 +429,6 @@ function createPlaylistSubBox(){
 }
 // create and append video element
 function createVideoElement(videoData) {
-  // check if video element already exists
-  // if(document.querySelector(`#playlist-subscription-box a[href = "/watch?v=${videoData.videoId}"]`)){
-  //   console.log("video element exists");
-  // }else{
-
 
   // create video item renderer element
   const video = document.createElement("ytd-rich-item-renderer");
@@ -543,37 +538,4 @@ function secondsToHMS(seconds) {
     return `${hours}:${String(remainingMinutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   }
   return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
-}
-// convert published text to timestamp
-function textToTimestamp(text) {
-
-  // Convert to lowercase for easier parsing
-  let lowered = text.toLowerCase();
-
-  if(lowered.includes('second')) {
-    return Date.now() - 1000;
-  }
-
-  if(lowered.includes('minute')) {
-    const minutes = parseInt(lowered) || 1; 
-    return Date.now() - (minutes * 60 * 1000);
-  }
-
-  if(lowered.includes('hour')) {
-    const hours = parseInt(lowered) || 1;
-    return Date.now() - (hours * 60 * 60 * 1000); 
-  }
-
-  if(lowered.includes('day')) {
-    const days = parseInt(lowered) || 1;
-    return Date.now() - (days * 24 * 60 * 60 * 1000);
-  }
-
-  if(lowered.includes('week')) {
-    const weeks = parseInt(lowered) || 1;
-    return Date.now() - (weeks * 7 * 24 * 60 * 60 * 1000);
-  }
-
-  return 0; // Default if no match
-
 }
