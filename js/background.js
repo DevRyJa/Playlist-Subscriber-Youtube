@@ -1,3 +1,4 @@
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.request === "playlist_data") {
     (async () => {
@@ -21,8 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       let profile = message.profile;
       let userHandle = message.user;
-      let playlists = getSubscribedPlaylists(userHandle,profile);
-      await getRecentVideos(playlists,userHandle,profile);
+      await getRecentVideos(userHandle,profile);
       sendResponse("User video data updated.");
     })();
     return true;
@@ -40,7 +40,7 @@ async function getPlaylistData(playlist) {
 // API video data request
 async function getVideoData(video) {
   const result = await fetch(
-    `https://inv.tux.pizza/api/v1/videos/${video}`
+    `https://inv.tux.pizza/api/v1/videos/${video}?fields=published,lengthSeconds,viewCount,title,videoId,author,authorId,authorThumbnails`
   );
   const data = await result.json();
   return data;
@@ -58,55 +58,71 @@ async function getChannelID(userHandle) {
   return channelID;
 }
 // retrieve and update user video data
-async function getRecentVideos(playlists, userHandle, profile) {
+async function getRecentVideos(userHandle, profile) {
+
+  //store data needed to fetch video data and identify playlist
+  let videoInfo = profile[userHandle].videoData.map(video=>{
+    return {
+            videoId: video.videoId, 
+            playlistTitle: video.playlistTitle, 
+            playlistId: video.playlistId
+          }
+    });
+
+  // get subscribed playlist data
+  let playlists = getSubscribedPlaylists(userHandle,profile);
   // fetch all playlist api data
   const playlistsPromises = playlists.map((playlist) => {
     return getPlaylistData(playlist);
   });
   const playlistsData = await Promise.all(playlistsPromises);
-  // include playlists that video count has changed or video count does not exists yet
+  // only include playlists that video count has changed or video count does not exists yet
   const changedPlaylists = playlistsData.filter(playlist => {
-    return  !profile[userHandle].playlistData[playlist.playlistId].videoCount || playlist.videoCount != profile[userHandle].playlistData[playlist.playlistId].videoCount; 
+    return !profile[userHandle].playlistData[playlist.playlistId].videoCount || playlist.videoCount != profile[userHandle].playlistData[playlist.playlistId].videoCount; 
   });
+
   // go through each changed playlist
   for (let playlist of changedPlaylists) {
     //update video count in user playlist data
     profile[userHandle].playlistData[playlist.playlistId].videoCount = playlist.videoCount;
     // filter out private videos
-    const publicVideos = playlist.videos.filter(
-      (video) => video.title !== "[Private video]"
-    );
-    // fetch video data for remaining videos
-    const videoPromises = publicVideos.map((video) => {
-      return getVideoData(video.videoId);
-    });
-    const videos = await Promise.allSettled(videoPromises);
-    // sort videos by published timestamp
-    videos.sort((a, b) => textToTimestamp(b.value.publishedText) - textToTimestamp(a.value.publishedText));
-    // save video if released within last 7 days
-    for (let video of videos) {
-      if (isWithinLast7Days(textToTimestamp(video.value.publishedText)) && !profile[userHandle].videoData[video.value]) {
-        video.value.playlistId = playlist.playlistId;
-        video.value.playlistTitle = playlist.title;
-        profile[userHandle].videoData.push(video.value);
-      } else {
-        break;
+    const publicVideos = playlist.videos.filter((video) => video.title !== "[Private video]");
+    // push all necessary data to videoInfo array
+    publicVideos.forEach(video=>{
+      videoInfo.push({
+        videoId: video.videoId,
+        playlistTitle: playlist.title,
+        playlistId: playlist.playlistId
+      })
+    })
+  }
+
+  // fetch video data for existing and newly added videos
+  const videoPromises = videoInfo.map((video) => {return getVideoData(video.videoId)});
+  const videos = (await Promise.allSettled(videoPromises.map(promise => Promise.race([promise, rejectAfterDelay(15000)]))))
+    .filter(result => result.status === "fulfilled")
+    .map(r =>{ return r.value})
+    .sort((a, b) => (b.published) - (a.published))
+    .filter(video => withinWeek(video.published))
+
+  // combine relevant data from arrays
+  for(let info of videoInfo){
+    for(let video of videos){
+      if(video.videoId == info.videoId){
+        video.playlistTitle = info.playlistTitle;
+        video.playlistId = info.playlistId;
       }
     }
   }
-  const updateVideos = profile[userHandle].videoData
-    .sort((a, b) => textToTimestamp(b.publishedText) - textToTimestamp(a.publishedText))
-    .filter((video)=>isWithinLast7Days(textToTimestamp(video.publishedText)))
-
-  console.log(updateVideos);
-  profile[userHandle].videoData = updateVideos;
+  profile[userHandle].videoData = videos;
   await chrome.storage.local.set({profile});
 }
+
 // check if timestamp within last 7 days
-function isWithinLast7Days(timestamp) {
-  const now = Date.now();
-  const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-  return timestamp > sevenDaysAgo;
+function withinWeek(timestamp){
+  const now = Math.floor(Date.now()/1000)
+  const difference = now - timestamp;
+  return 60 * 60 * 24 * 8 > difference
 }
 // get subscribed playlists
 function getSubscribedPlaylists (userHandle,profile){
@@ -163,3 +179,6 @@ function textToTimestamp(text) {
 
 }
 
+const rejectAfterDelay = ms => new Promise((_, reject) => {
+  setTimeout(reject, ms, new Error("timeout"));
+});
