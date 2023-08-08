@@ -1,6 +1,3 @@
-.shortsToggleButton {
-    margin-left: 10px;
-}
 
 ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'] ytd-playlist-header-renderer div.metadata-action-bar > div.metadata-buttons-wrapper
 {
@@ -40,3 +37,12 @@ ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'
     /* position: absolute; 
     left: -9999px; */
   }
+
+  .playlistSubBtn {
+    width: auto !important;
+  }
+
+ ytd-page-manager #header-contents {
+    padding-bottom: 0.7em;
+ }
+ 
