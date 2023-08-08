@@ -135,50 +135,7 @@ function getSubscribedPlaylists (userHandle,profile){
   }
   return subscribedPlaylists;
 }
-// convert published text to timestamp
-function textToTimestamp(text) {
-  if(text==undefined){
-    return 0;
-  }
-  // Convert to lowercase for easier parsing
-  let lowered = text.toLowerCase();
-
-  if(lowered.includes('second')) {
-    return Date.now() - 1000;
-  }
-
-  if(lowered.includes('minute')) {
-    const minutes = parseInt(lowered) || 1; 
-    return Date.now() - (minutes * 60 * 1000);
-  }
-
-  if(lowered.includes('hour')) {
-    const hours = parseInt(lowered) || 1;
-    return Date.now() - (hours * 60 * 60 * 1000); 
-  }
-
-  if(lowered.includes('day')) {
-    const days = parseInt(lowered) || 1;
-    return Date.now() - (days * 24 * 60 * 60 * 1000);
-  }
-
-  if(lowered.includes('week')) {
-    const weeks = parseInt(lowered) || 1;
-    return Date.now() - (weeks * 7 * 24 * 60 * 60 * 1000);
-  }
-
-  if(lowered.includes('month')) {
-    const months = parseInt(lowered) || 1;
-    return Date.now() - (months * 30 * 24 * 60 * 60 * 1000);
-  }
-  if(lowered.includes('year')) {
-    const years = parseInt(lowered) || 1;
-    return Date.now() - (years * 365 * 24 * 60 * 60 * 1000);
-  }
-  return 0; // Default if no match
-
-}
-
+// delay for promises
 const rejectAfterDelay = ms => new Promise((_, reject) => {
   setTimeout(reject, ms, new Error("timeout"));
 });
