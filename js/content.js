@@ -1,6 +1,7 @@
 let lastUrl = "";
 let lastRunTime = null;
 
+
 (async ()=>{await initializData();
 })()
 
@@ -22,6 +23,14 @@ async function urlHandler(url, userHandle) {
   // on youtube subscriptions page
   if (url.startsWith("https://www.youtube.com/feed/subscriptions")) {
     console.log("on subscription feed");
+    if(document.querySelector("#playlist-header-btn")){
+      if(document.querySelector("#playlist-header-btn").hasAttribute("selected")){
+          document.querySelector("#all-header-btn").click();
+          console.log("element clicked");
+      }
+    }else{
+      console.log("no element");
+    }
     // verify user
     await verifyUser(userHandle);
     // append subscription box header
@@ -37,7 +46,7 @@ async function urlHandler(url, userHandle) {
     // create playlist data
     await initPlaylistData(userHandle, await getProfileData(), getPlaylistID(url));
     //append playlist subscribe button
-    await appendSubcribeButton(userHandle,getPlaylistID(url));
+    await appendSubcribeButton(userHandle,getPlaylistID(url),selectors.subContainer);
   }
   // on any youtube page
   else if (url.includes("youtube.com")) {
@@ -174,7 +183,11 @@ async function initPlaylistData (userHandle,profile,playlistID){
 }
 // grab playlist ID from url
 function getPlaylistID(url) {
-  return url.split("list=")[1];
+  if(url.includes("watch")){
+    return url.match(/list=(\w+)/)[1];
+  }else{
+    return url.split("list=")[1];
+  }
 }
 // update user video data
 async function updateVideoData(userHandle){
@@ -196,16 +209,15 @@ async function createPlaylistButton(userHandle,playlistID) {
   return subscribeButton;
 }
 // append subscribe button
-async function appendSubcribeButton(userHandle,playlistID){
-  console.log(userHandle);
-  removeElement(document.querySelector(".playlistSubBtn"));
+async function appendSubcribeButton(userHandle,playlistID,container){
+  removeElement(document.querySelector("#playlistSubBtn"));
   let subBtn = await createPlaylistButton(userHandle, playlistID);
-  insertElement(subBtn,await elementReady(selectors.subContainer),".playlistSubBtn");
+  insertElement(subBtn,await elementReady(container),"#playlistSubBtn");
 }
 // create subscribe button element
 async function createSubscribeButtonElement(userHandle,playlistID) {
   let buttonEl = document.createElement("button");
-  buttonEl.classList.add("playlistSubBtn");
+  buttonEl.id = "playlistSubBtn";
   buttonEl.classList.add("yt-spec-button-shape-next", "yt-spec-button-shape-next--tonal", "yt-spec-button-shape-next--mono", "yt-spec-button-shape-next--size-m");
   buttonEl.setAttribute("aria-label", "Subscribe Button");
 
@@ -254,12 +266,12 @@ let profile = await getProfileData();
     await subscribe(playlistID,userHandle);
     // update button text
     btn.querySelector("span").textContent = await subscribeBtnText(userHandle, playlistID);
-    }else{
+  }else{
     // update playlsit data
     await unsubscribe(playlistID,userHandle);
     // update button text
     btn.querySelector("span").textContent = await subscribeBtnText(userHandle, playlistID);
-    }
+  }
 console.log("updating videos...");
 await updateVideoData(userHandle);
 }
@@ -342,10 +354,10 @@ async function appendPlaylistVideos(userHandle){
   console.log(profile[userHandle].playlistData);
   // retrieve and append video data from subscribed playlists
   let videos = profile[userHandle].videoData;
-
   document.querySelector("#playlist-subscription-box").replaceChildren();
+  console.log(videos);
   for (let video of videos) {
-    if(video.href="ga")
+    // if(document.querySelector())
     createVideoElement(video);
   }
   // fetch updated video data
@@ -429,7 +441,7 @@ function createPlaylistSubBox(){
 }
 // create and append video element
 function createVideoElement(videoData) {
-
+  console.log(videoData);
   // create video item renderer element
   const video = document.createElement("ytd-rich-item-renderer");
   video.className = "style-scope ytd-rich-grid-row";
@@ -473,8 +485,8 @@ function createVideoElement(videoData) {
   video.querySelector("div#details div#meta #metadata #text-container #text ").innerHTML = `<a class="yt-simple-endpoint style-scope yt-formatted-string" spellcheck="false" href="/playlist?list=${videoData.playlistId}" dir="auto">${videoData.playlistTitle}</a>`
   video.querySelector("div#details div#meta #metadata #metadata-line").innerHTML = 
   `     <div id="separator" class="style-scope ytd-video-meta-block" hidden="">•</div>
-        <span class="inline-metadata-item style-scope ytd-video-meta-block">${videoData.subCountText} views</span>
-        <span class="inline-metadata-item style-scope ytd-video-meta-block">${videoData.publishedText}</span>
+        <span class="inline-metadata-item style-scope ytd-video-meta-block">${formatViewCount(videoData.viewCount)} views</span>
+        <span class="inline-metadata-item style-scope ytd-video-meta-block">${timestampToText(videoData.published)} ago</span>
         <dom-repeat strip-whitespace="" class="style-scope ytd-video-meta-block">
         <template is="dom-repeat"></template></dom-repeat>`
 
@@ -486,9 +498,7 @@ function createVideoElement(videoData) {
 
 // selectors
 const selectors = {
-  subContainer : "ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'] ytd-playlist-header-renderer div.metadata-action-bar > div.metadata-buttons-wrapper",
-  subBtnClass : ".playlistSubBtn",
-
+  subContainer : "ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'] ytd-playlist-header-renderer div.metadata-action-bar > div.metadata-buttons-wrapper"
 }
 // check if target element exists
 function elementReady(selector) {
@@ -538,4 +548,70 @@ function secondsToHMS(seconds) {
     return `${hours}:${String(remainingMinutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   }
   return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+// convert raw view number to display format
+function formatViewCount(views) {
+  if(views<1000){
+      return views;
+  }
+  else if(views<10000){
+      return truncate(views/1000,1) + "K";
+  }
+  else if(views<100000){
+      return Math.floor(views/1000) + "K";
+  }
+  else if(views<1000000){
+      return Math.trunc(views/1000) + "K";
+  }
+  else if (views<10000000){
+      return truncate(views/1000000,1) + "M";
+  }
+  else if(views<1000000000){
+      return Math.trunc(views/1000000) + "M";
+  }
+  else if(views<10000000000){
+      return truncate(views/1000000000,1) + "B";
+  }
+  else if(views<1000000000000){
+      return Math.floor(views/1000000000) + "B";
+  }
+  else{
+      return "Unknown";
+  }
+}
+// truncate helper func
+function truncate(number, decimals) {
+  const pow = Math.pow(10, decimals);
+  return Math.trunc(number * pow) / pow;
+}
+// convert timestamp to text
+function timestampToText(timestamp){
+  const now = Math.floor(Date.now()/1000)
+  let difference = now - timestamp;
+
+  if(difference < 60){
+      return "just now"
+  }
+  difference /= 60;
+  if(difference < 60){
+  return Math.floor(difference) == 1 ? Math.floor(difference) + " minute" : Math.floor(difference) + " minutes"
+  }
+  difference /= 60;
+  if(difference < 24){
+      return Math.floor(difference) == 1 ? Math.floor(difference) + " hour": Math.floor(difference) + " hours"
+  }
+  difference /= 24;
+  if(difference < 7){
+      return Math.floor(difference) == 1 ? Math.floor(difference) + " day": Math.floor(difference) + " days"
+  }
+  difference /= 7;
+  if(difference < 4.34){
+      return Math.floor(difference) == 1 ? Math.floor(difference) + " week": Math.floor(difference) + " weeks"
+  }
+  difference /= 4.34
+  if(difference < 12){
+      return Math.floor(difference) == 1 ? Math.floor(difference) + " month": Math.floor(difference) + " months"
+  }
+  difference /= 12
+  return Math.floor(difference) == 1 ? Math.floor(difference) + " year": Math.floor(difference) + " years"
 }
