@@ -347,7 +347,6 @@ async function createSubHeader (userHandle){
   // append playlist contents
   subBox.appendChild(createPlaylistSubBox());
 }
-
 //append playlist videos
 async function appendPlaylistVideos(userHandle){
   let profile  = await getProfileData();
@@ -441,17 +440,16 @@ function createPlaylistSubBox(){
 }
 // create and append video element
 function createVideoElement(videoData) {
-  console.log(videoData);
   // create video item renderer element
-  const video = document.createElement("ytd-rich-item-renderer");
-  video.className = "style-scope ytd-rich-grid-row";
+  const video = document.createElement("div");
+
   
   // append to page
   document.querySelector('#playlist-subscription-box').appendChild(video);
 
   const media = document.createElement("ytd-rich-grid-media");
   media.className = "style-scope ytd-rich-item-renderer";
-  video.querySelector('#content').appendChild(media);
+  video.appendChild(media);
   media.querySelector("ytd-playlist-thumbnail").remove();
  
   // create video thumbnail
