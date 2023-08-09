@@ -13,7 +13,6 @@ ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'
 }
 
 #subscription-header {
-    /* width: 100%; */
     margin-left: 4em;
 }
 #subscription-header yt-chip-cloud-chip-renderer {
@@ -21,10 +20,13 @@ ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'
 }
 
 #playlist-subscription-box {
-    padding-top: 2em;
-    display:flex;
-    flex-wrap: wrap;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 310px);
+    grid-gap: 1rem;
+    justify-content: space-between;
+    padding-top: 2rem;
+    padding-left: 4rem;
+    padding-right: 4rem;
 }
 
 .grid-subheader.ytd-shelf-renderer {
@@ -33,9 +35,6 @@ ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'
 
 .hidden {
     visibility: hidden; 
-    /* display:none; */
-    /* position: absolute; 
-    left: -9999px; */
   }
 
   .playlistSubBtn {
