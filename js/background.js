@@ -32,7 +32,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // API playlist data request
 async function getPlaylistData(playlist) {
   const result = await fetch(
-    `https://vid.puffyan.us/api/v1/playlists/${playlist}?fields=title,playlistId,videos,videoCount`
+    `https://inv.tux.pizza/api/v1/playlists/${playlist}?fields=title,playlistId,videos,videoCount`
   );
   const data = await result.json();
   return data;
@@ -60,7 +60,7 @@ async function getChannelID(userHandle) {
 // retrieve and update user video data
 async function getRecentVideos(userHandle, profile) {
 
-  //store data needed to fetch video data and identify playlist
+//store data needed to fetch video data and identify playlist
   let videoInfo = profile[userHandle].videoData.map(video=>{
     return {
             videoId: video.videoId, 
@@ -104,6 +104,7 @@ async function getRecentVideos(userHandle, profile) {
     .map(r =>{ return r.value})
     .sort((a, b) => (b.published) - (a.published))
     .filter(video => withinWeek(video.published))
+    .filter((video, index, self) => {return self.findIndex(v => v.videoId === video.videoId) === index});
 
   // combine relevant data from arrays
   for(let info of videoInfo){
@@ -114,6 +115,7 @@ async function getRecentVideos(userHandle, profile) {
       }
     }
   }
+  console.log(videos);
   profile[userHandle].videoData = videos;
   await chrome.storage.local.set({profile});
 }
