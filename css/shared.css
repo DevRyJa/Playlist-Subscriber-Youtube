@@ -19,7 +19,7 @@ ytd-browse:not(#top-level-buttons-computed)[role='main'][page-subtype='playlist'
     margin-right: 15px ;
 }
 
-#playlist-subscription-box {
+#playlist-contents {
     display: grid;
     grid-template-columns: repeat(auto-fill, 310px);
     grid-gap: 1rem;

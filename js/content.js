@@ -35,7 +35,7 @@ async function urlHandler(url, userHandle) {
     await verifyUser(userHandle);
     // append subscription box header
     if(!document.querySelector('div#subscription-header')){
-      createSubHeader(userHandle);
+      createSubBoxHeader(userHandle);
     }
   }
   // on youtube playlist page
@@ -328,124 +328,92 @@ async function apiChannelId(userHandle){
 //----------- SUBSCRIPTION BOX ----------//
 
 // create subscription box header
-async function createSubHeader (userHandle){
-  // append header
-  let header = document.createElement("div");
-  header.id = "subscription-header";
-  await elementReady("ytd-browse[page-subtype = 'subscriptions'] div#primary ytd-rich-grid-renderer");
-  const firstChild = document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").firstChild;
-  document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").insertBefore(header,firstChild);
-  // append header buttons
-  createAllHeaderButton(header,"div#subscription-box ytd-rich-grid-renderer");
-  createPlaylistHeaderButton(header,"#playlist-subscription-box",userHandle);
-  // append sub box container
-  let subBox = document.createElement("div");
-  subBox.id = "subscription-box";
-  document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").appendChild(subBox);
-  // append subscription contents to sub box container
-  subBox.appendChild(document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ytd-rich-grid-renderer"));
-  // append playlist contents
-  subBox.appendChild(createPlaylistSubBox());
+async function createSubBoxHeader (userHandle){
+  // create and append header
+  await createHeaderElement();
+
+  // create and append header buttons
+  createHeaderButtonElement("#subscription-header", "All", "ytd-browse[page-subtype = 'subscriptions'] div#primary ytd-rich-grid-renderer", true)
+  createHeaderButtonElement("#subscription-header", "Playlist", "#playlist-subscription-box", selected=false,userHandle)
+
+  // append playlist sub box
+  document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").appendChild(createPlaylistSubBox());
 }
 //append playlist videos
 async function appendPlaylistVideos(userHandle){
   let profile  = await getProfileData();
-  console.log(profile[userHandle].playlistData);
   // retrieve and append video data from subscribed playlists
   let videos = profile[userHandle].videoData;
-  document.querySelector("#playlist-subscription-box").replaceChildren();
-  console.log(videos);
+  document.querySelector("#playlist-subscription-box #playlist-contents").replaceChildren();
   for (let video of videos) {
-    // if(document.querySelector())
     createVideoElement(video);
   }
   // fetch updated video data
   await updateVideoData(userHandle);
 }
-// create and append subscription header button
-function createAllHeaderButton (container,contents){
-  // create youtube chip button element
-  let headerButton = document.createElement("yt-chip-cloud-chip-renderer");
-  // append to page
-  container.appendChild(headerButton);
-  // implement correct button styling
-  headerButton.setAttribute("chip-style","STYLE_HOME_FILTER");
-  headerButton.querySelector("yt-formatted-string").removeAttribute("is-empty");
-  headerButton.querySelector("yt-formatted-string").textContent = "All";
-  headerButton.id = "all-header-btn";
-  // set state of default button
-  headerButton.setAttribute("selected","");
-  headerButton.setAttribute("aria-selected","true");
+//create and append header button element
+function createHeaderButtonElement(container, text, contents, selected=false,userHandle){
 
-  // add tab-like click event
-  headerButton.addEventListener('click', function(event) {
-    if(event.currentTarget.getAttribute('aria-selected') == "false"){
-      // reset all header buttons to neutral state
-      document.querySelectorAll("#subscription-header yt-chip-cloud-chip-renderer").forEach(button => {
-        button.removeAttribute("selected");
-      })
-      // change clicked button to selected state
-      event.currentTarget.setAttribute("aria-selected","true");
-      event.currentTarget.setAttribute("selected","");
-      // hide all video containers
-      const container = document.querySelector('#subscription-box');
-      const boxes = Array.from(container.children);
-      boxes.forEach(box=>{box.hidden = true})
-      // unhide selected video container
-      document.querySelector(contents).hidden = false;
-    }
-  });
-  return headerButton;
-}
-// create and append subscription header button
-function createPlaylistHeaderButton (container,contents,userHandle){
   // create youtube chip button element
-  let headerButton = document.createElement("yt-chip-cloud-chip-renderer");
+  const headerButton = document.createElement("yt-chip-cloud-chip-renderer");
+
   // append to page
-  container.appendChild(headerButton);
-  // implement correct button styling
+  document.querySelector(container).appendChild(headerButton);
+
+  // add button styling
   headerButton.setAttribute("chip-style","STYLE_HOME_FILTER");
   headerButton.querySelector("yt-formatted-string").removeAttribute("is-empty");
-  headerButton.querySelector("yt-formatted-string").textContent = "Playlists";
-  headerButton.id = "playlist-header-btn";
+  headerButton.querySelector("yt-formatted-string").textContent = text;
+  headerButton.id = `header${text}Btn`;
+
+  //set state of default tab
+  if(selected){
+    headerButton.setAttribute("selected","");
+    headerButton.setAttribute("aria-selected","true");
+  }
 
   // add tab-like click event
   headerButton.addEventListener('click', async function(event) {
     if(event.currentTarget.getAttribute('aria-selected') == "false"){
+
       // reset all header buttons to neutral state
-      document.querySelectorAll("#subscription-header yt-chip-cloud-chip-renderer").forEach(button => {
-        button.removeAttribute("selected");
-      })
+      document.querySelectorAll("#subscription-header yt-chip-cloud-chip-renderer")
+        .forEach(button => {button.removeAttribute("selected");})
+
       // change clicked button to selected state
       event.currentTarget.setAttribute("aria-selected","true");
       event.currentTarget.setAttribute("selected","");
-      // hide all video containers
-      const container = document.querySelector('#subscription-box');
-      const boxes = Array.from(container.children);
-      boxes.forEach(box=>{box.hidden = true})
-      //append videos
-      appendPlaylistVideos(userHandle);
-      // unhide selected video container
+
+      // hide containers
+      const container = [document.querySelector('#playlist-subscription-box'),document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ytd-rich-grid-renderer")];
+      container.forEach(box=>{box.hidden = true})
+
+      // show selected container
       document.querySelector(contents).hidden = false;
+
+      //append videos
+      if(text == "Playlist"){appendPlaylistVideos(userHandle);}
     }
   });
-  return headerButton;
 }
 // create playlist subscription box
 function createPlaylistSubBox(){
   let playlistSubBox = document.createElement("div");
-  playlistSubBox.classList.add("style-scope");
+  // playlistSubBox.classList.add("style-scope");
   playlistSubBox.id = "playlist-subscription-box";
+  let contents = document.createElement("div");
+  contents.id = "playlist-contents"
+  playlistSubBox.appendChild(contents);
   return playlistSubBox;
 }
 // create and append video element
 function createVideoElement(videoData) {
-  // create video item renderer element
+  // create video element container
   const video = document.createElement("div");
 
-  
+  console.log(document.querySelector('#playlist-contents'));
   // append to page
-  document.querySelector('#playlist-subscription-box').appendChild(video);
+  document.querySelector('#playlist-contents').appendChild(video);
 
   const media = document.createElement("ytd-rich-grid-media");
   media.className = "style-scope ytd-rich-item-renderer";
@@ -490,7 +458,19 @@ function createVideoElement(videoData) {
 
   return video;
   }
-// }
+//create and append header button element
+async function createHeaderElement(){
+  // create header
+  let header = document.createElement("div");
+  header.id = "subscription-header";
+
+  // append header
+  await elementReady("ytd-browse[page-subtype = 'subscriptions'] div#primary ytd-rich-grid-renderer");
+  const firstChild = document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").firstChild;
+  document.querySelector("ytd-browse[page-subtype = 'subscriptions'] div#primary ").insertBefore(header,firstChild);
+
+  return header;
+}
 
 //------------ OTHER UTILS -----------//
 
