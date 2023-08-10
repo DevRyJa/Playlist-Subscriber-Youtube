@@ -22,14 +22,10 @@ async function urlHandler(url, userHandle) {
 
   // on youtube subscriptions page
   if (url.startsWith("https://www.youtube.com/feed/subscriptions")) {
-    console.log("on subscription feed");
     if(document.querySelector("#playlist-header-btn")){
       if(document.querySelector("#playlist-header-btn").hasAttribute("selected")){
           document.querySelector("#all-header-btn").click();
-          console.log("element clicked");
       }
-    }else{
-      console.log("no element");
     }
     // verify user
     await verifyUser(userHandle);
@@ -40,7 +36,6 @@ async function urlHandler(url, userHandle) {
   }
   // on youtube playlist page
   else if (url.startsWith("https://www.youtube.com/playlist?list=")) {
-    console.log("on playlist page");
     // verify user
     await verifyUser(userHandle);
     // create playlist data
@@ -53,10 +48,8 @@ async function urlHandler(url, userHandle) {
     const now = Date.now();
     // Check if last run was < 30 minutes ago
     if (lastRunTime && now - lastRunTime < 30 * 60 * 1000) {
-      console.log("it's not time");
       return;
     }
-    console.log("its time");
     // update subscription video data
     try {
       await updateVideoData(userHandle);
@@ -84,16 +77,13 @@ async function initLocalStorage() {
       profile: {}
     };
     await chrome.storage.local.set(defaultData);
-    console.log("local storage initialized");
   } else {
-    console.log(result, "local storage already intiialized");
     return;
   }
 }
 // get profile data
 async function clearLocalStorage(){
   await chrome.storage.local.clear();
-  console.log("data cleared");
 }
 // get user profile data
 async function getProfileData(){
@@ -111,7 +101,6 @@ async function verifyUser(userHandle){
       if(profile[user].channelID == channelID){
         //if channel id matches, check if handle needs to be updated
         if(user==userHandle){
-          console.log("Logged in as: ",userHandle);
           return;
         }else{
           //update handle
@@ -120,7 +109,6 @@ async function verifyUser(userHandle){
         }
       }
     }
-    console.log("no matching users");
     await createUser(profile,userHandle,channelID)
     return;
   } catch (error) {
@@ -135,14 +123,12 @@ async function createUser(profile,userHandle,channelID){
     videoData: []
   };
   await chrome.storage.local.set({profile});
-  console.log("user storage created");
 }
 // update userHandle data
 async function updateUser(profile,oldUserHandle,newUserHandle){
   profile[newUserHandle] = profile[oldUserHandle];
   delete profile[oldUserHandle];
   await chrome.storage.local.set({profile});
-  console.log("Updated user handle in profile data.");
 }
 
 //-----------  YOUTUBE DATA UTILS ---------- //
@@ -176,9 +162,8 @@ async function initPlaylistData (userHandle,profile,playlistID){
       isSubscribed: false
     }
     await chrome.storage.local.set({profile});
-    console.log("Playlist data created.")
   }else{
-    console.log("Playlist data already exists.")
+    return;
   }
 }
 // grab playlist ID from url
@@ -193,9 +178,7 @@ function getPlaylistID(url) {
 async function updateVideoData(userHandle){
   await verifyUser(userHandle);
   let profile = await getProfileData();
-  console.log(profile);
   await chrome.runtime.sendMessage({request: 'user_video_data',profile: profile, user: userHandle});
-  console.log("videos updated");
 }
 
 //---------- PLAYLIST SUBSCRIBE BUTTON ----------//
@@ -272,7 +255,6 @@ let profile = await getProfileData();
     // update button text
     btn.querySelector("span").textContent = await subscribeBtnText(userHandle, playlistID);
   }
-console.log("updating videos...");
 await updateVideoData(userHandle);
 }
 
@@ -284,10 +266,8 @@ async function subscribe (playlistID,userHandle){
   profile[userHandle].playlistData[playlistID].isSubscribed = true;
   //update date unsubscribed
   profile[userHandle].playlistData[playlistID].dateSubscribed = new Date().toISOString();
-  console.log("before save");
   //save data
   await chrome.storage.local.set({ profile });
-  console.log(playlistID, ' subscribed state changed to ', profile[userHandle].playlistData[playlistID].isSubscribed);
 }
 // unsubscribe to playlist
 async function unsubscribe (playlistID,userHandle){
@@ -299,15 +279,12 @@ async function unsubscribe (playlistID,userHandle){
   profile[userHandle].playlistData[playlistID].dateUnsubscribed = new Date().toISOString();
   //remove video count
   delete profile[userHandle].playlistData[playlistID].videoCount;
-  console.log(profile[userHandle].videoData);
   //remove videos from unsubscribed playlist
   profile[userHandle].videoData = profile[userHandle].videoData.filter(video => {
     return video.playlistId !== playlistID; 
   });
-  console.log(profile[userHandle].videoData);
   //save data
   await chrome.storage.local.set({ profile });
-  console.log(playlistID, ' subscribed state changed to ', profile[userHandle].playlistData[playlistID].isSubscribed);
 }
 
 //----------- YOUTUBE API UTILS ----------//
@@ -411,7 +388,6 @@ function createVideoElement(videoData) {
   // create video element container
   const video = document.createElement("div");
 
-  console.log(document.querySelector('#playlist-contents'));
   // append to page
   document.querySelector('#playlist-contents').appendChild(video);
 
@@ -504,17 +480,16 @@ function elementReady(selector) {
 // insert element
 function insertElement(element, parentEl, uniqueSelector) {
   if (document.querySelector(uniqueSelector)) {
-    console.log("element exists");
+    return;
   } else {
     parentEl.appendChild(element);
-    console.log("Element appended.");
+    return;
   }
 }
 // remove element
 function removeElement(element) {
   if (!element) return;
   element.remove();
-  console.log("element removed");
 }
 // convert seconds into HMS format
 function secondsToHMS(seconds) {

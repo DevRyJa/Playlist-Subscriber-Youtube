@@ -115,7 +115,6 @@ async function getRecentVideos(userHandle, profile) {
       }
     }
   }
-  console.log(videos);
   profile[userHandle].videoData = videos;
   await chrome.storage.local.set({profile});
 }
