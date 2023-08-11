@@ -9,4 +9,4 @@ Introducing the "Playlist Subscription" feature, allowing you to subscribe to yo
 Adds a "Subscribe" button to every Youtube playlist page. Once you subscribe to a playlist, you'll receive recently added videos to your subscription box. This means you can keep track of your favorite series' from a channel without being bombarded with unwanted uploads.
 
 <h1>Installation</h1> 
-The extension is available on the <a href = "https://chrome.google.com/webstore/detail/playlist-subscriber-for-y/hfodjopaffebgnlmlbmambdfcjbjbjgm">Chrome Webstore</a>.
+This extension is available on the <a href = "https://chrome.google.com/webstore/detail/playlist-subscriber-for-y/hfodjopaffebgnlmlbmambdfcjbjbjgm">Chrome Webstore</a>.
